@@ -32,6 +32,9 @@ function webosTvAccessory(log, config, api) {
     this.keyFile = config['keyFile'];
     this.prefsDir = config['prefsDir'] || ppath('webosTv/');
     this.isTvService = config['tvService'];
+    this.switchNamePre = '';
+    this.switchNamePost = ''; //' ' + this.name;    
+
     if (this.isTvService == undefined) {
         this.isTvService = false;
     }
@@ -494,7 +497,7 @@ webosTvAccessory.prototype.prepareInputSourcesService = function() {
 // old services ----------------------------------------------------------------
 webosTvAccessory.prototype.prepareLegacyService = function() {
 
-    this.powerService = new Service.Switch(this.name + ' Power', 'powerService');
+    this.powerService = new Service.Switch(this.switchNamePre + 'Power' + this.switchNamePost, 'powerService');
     this.powerService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getPowerState.bind(this))
@@ -536,7 +539,7 @@ webosTvAccessory.prototype.prepareVolumeService = function() {
 
     // up/down switches
     if (this.volumeControl == true || this.volumeControl === 'switch') {
-        this.volumeUpService = new Service.Switch(this.name + ' Volume Up', 'volumeUpService');
+        this.volumeUpService = new Service.Switch(this.switchNamePre + 'Volume Up' + this.switchNamePost, 'volumeUpService');
         this.volumeUpService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getVolumeSwitch.bind(this))
@@ -546,7 +549,7 @@ webosTvAccessory.prototype.prepareVolumeService = function() {
 
         this.enabledServices.push(this.volumeUpService);
 
-        this.volumeDownService = new Service.Switch(this.name + ' Volume Down', 'volumeDownService');
+        this.volumeDownService = new Service.Switch(this.switchNamePre + 'Volume Down' + this.switchNamePost, 'volumeDownService');
         this.volumeDownService
             .getCharacteristic(Characteristic.On)
             .on('get', this.getVolumeSwitch.bind(this))
@@ -583,10 +586,10 @@ webosTvAccessory.prototype.prepareInputLegacyService = function() {
         }
 
         // get name
-        let inputName = this.name + ' App: ' + appId;
+        let inputName = 'App: ' + appId;
 
         if (value.name) {
-            inputName = value.name;
+            inputName = this.switchNamePre + value.name + this.switchNamePost;
         }
 
         // if appId not null or empty add the input
@@ -617,7 +620,7 @@ webosTvAccessory.prototype.prepareChannelService = function() {
         return;
     }
 
-    this.channelUpService = new Service.Switch(this.name + ' Channel Up', 'channelUpService');
+    this.channelUpService = new Service.Switch(this.switchNamePre + 'Channel Up' + this.switchNamePost, 'channelUpService');
     this.channelUpService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getChannelSwitch.bind(this))
@@ -628,7 +631,7 @@ webosTvAccessory.prototype.prepareChannelService = function() {
     this.enabledServices.push(this.channelUpService);
 
 
-    this.channelDownService = new Service.Switch(this.name + ' Channel Down', 'channelDownService');
+    this.channelDownService = new Service.Switch(this.switchNamePre + 'Channel Down' + this.switchNamePost, 'channelDownService');
     this.channelDownService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getChannelSwitch.bind(this))
@@ -646,7 +649,7 @@ webosTvAccessory.prototype.prepareMediaControlService = function() {
         return;
     }
 
-    this.mediaPlayService = new Service.Switch(this.name + ' Play', 'mediaPlayService');
+    this.mediaPlayService = new Service.Switch(this.switchNamePre + 'Play' + this.switchNamePost, 'mediaPlayService');
     this.mediaPlayService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getMediaControlSwitch.bind(this))
@@ -656,7 +659,7 @@ webosTvAccessory.prototype.prepareMediaControlService = function() {
 
     this.enabledServices.push(this.mediaPlayService);
 
-    this.mediaPauseService = new Service.Switch(this.name + ' Pause', 'mediaPauseService');
+    this.mediaPauseService = new Service.Switch(this.switchNamePre + 'Pause' + this.switchNamePost, 'mediaPauseService');
     this.mediaPauseService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getMediaControlSwitch.bind(this))
@@ -666,7 +669,7 @@ webosTvAccessory.prototype.prepareMediaControlService = function() {
 
     this.enabledServices.push(this.mediaPauseService);
 
-    this.mediaStopService = new Service.Switch(this.name + ' Stop', 'mediaStopService');
+    this.mediaStopService = new Service.Switch(this.switchNamePre + 'Stop' + this.switchNamePost, 'mediaStopService');
     this.mediaStopService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getMediaControlSwitch.bind(this))
@@ -676,7 +679,7 @@ webosTvAccessory.prototype.prepareMediaControlService = function() {
 
     this.enabledServices.push(this.mediaStopService);
 
-    this.mediaRewindService = new Service.Switch(this.name + ' Rewind', 'mediaRewindService');
+    this.mediaRewindService = new Service.Switch(this.switchNamePre + 'Rewind' + this.switchNamePost, 'mediaRewindService');
     this.mediaRewindService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getMediaControlSwitch.bind(this))
@@ -686,7 +689,7 @@ webosTvAccessory.prototype.prepareMediaControlService = function() {
 
     this.enabledServices.push(this.mediaRewindService);
 
-    this.mediaFastForwardService = new Service.Switch(this.name + ' Fast Forward', 'mediaFastForwardService');
+    this.mediaFastForwardService = new Service.Switch(this.switchNamePre + 'Fast Forward' + this.switchNamePost, 'mediaFastForwardService');
     this.mediaFastForwardService
         .getCharacteristic(Characteristic.On)
         .on('get', this.getMediaControlSwitch.bind(this))
@@ -710,7 +713,7 @@ webosTvAccessory.prototype.prepareChannelButtonService = function() {
 
     this.channelButtonService = new Array();
     this.channelButtons.forEach((value, i) => {
-        let tmpChannel = new Service.Switch(this.name + ' Channel: ' + value.name, 'channelButtonService' + i);
+        let tmpChannel = new Service.Switch(this.switchNamePre + '' + value.name + this.switchNamePost, 'channelButtonService' + i);
         this.channelButtons[i] = this.channelButtons[i].id.toString();
         tmpChannel
             .getCharacteristic(Characteristic.On)
@@ -740,7 +743,7 @@ webosTvAccessory.prototype.prepareNotificationButtonService = function() {
     this.notificationButtonService = new Array();
     this.notificationButtons.forEach((value, i) => {
         this.notificationButtons[i] = this.notificationButtons[i].toString();
-        let tmpNotification = new Service.Switch(this.name + ' Notification: ' + value, 'notificationButtonService' + i);
+        let tmpNotification = new Service.Switch(this.switchNamePre + 'Notification: ' + value + this.switchNamePost, 'notificationButtonService' + i);
         tmpNotification
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
@@ -769,8 +772,7 @@ webosTvAccessory.prototype.prepareRemoteControlButtonService = function() {
     this.remoteControlButtonService = new Array();
     this.remoteControlButtons.forEach((value, i) => {
         this.remoteControlButtons[i] = this.remoteControlButtons[i].id.toString().toUpperCase();
-        //let tmpRemoteControl = new Service.Switch(this.name + ' RC: ' + value, 'remoteControlButtonService' + i);
-        let tmpRemoteControl = new Service.Switch(this.name + ' ' + value.name, 'remoteControlButtonService' + i);
+        let tmpRemoteControl = new Service.Switch(this.switchNamePre + value.name + this.switchNamePost, 'remoteControlButtonService' + i);
         tmpRemoteControl
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
@@ -799,7 +801,7 @@ webosTvAccessory.prototype.prepareSoundOutputButtonService = function() {
     this.soundOutputButtonService = new Array();
     this.soundOutputButtons.forEach((value, i) => {
         this.soundOutputButtons[i] = this.soundOutputButtons[i].id.toString();
-        let tmpSoundOutput = new Service.Switch(this.name + ' Audio: ' + value.name, 'soundOutputButtonService' + i);
+        let tmpSoundOutput = new Service.Switch(this.switchNamePre + 'Audio: ' + value.name + this.switchNamePost, 'soundOutputButtonService' + i);
         tmpSoundOutput
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
