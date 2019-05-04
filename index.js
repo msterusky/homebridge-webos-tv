@@ -40,9 +40,10 @@ function webosTvAccessory(log, config, api) {
         this.volumeControl = true;
     }
     this.volumeLimit = config['volumeLimit'];
-    if (this.volumeLimit == undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0) {
+    if (this.volumeLimit == undefined || isNaN(this.volumeLimit) || this.volumeLimit < 0 || this.volumeLimit > 100) {
         this.volumeLimit = 100;
     }
+    this.volumeConstant = (100 / this.volumeLimit);
     this.channelControl = config['channelControl'];
     if (this.channelControl == undefined) {
         this.channelControl = true;
@@ -241,13 +242,22 @@ webosTvAccessory.prototype.subscribeToServices = function() {
             this.log.error('webOS - TV audio status - error while getting current audio status');
         } else {
             this.log.info('webOS - audio status changed');
+            if (this.tvCurrentSoundOutput === 'external_speaker') {
+                //this.volumeService.getCharacteristic(Characteristic.On).updateValue(false);
+                //callback();
+                //return;
+                res.volume = 0;
+                res.mute = true;
+            }           
+
+            res.volume = Math.floor(res.volume * this.volumeConstant);
 
             // volume state
             this.tvVolume = res.volume;
             this.setVolumeManually(this.tvVolume);
             this.log.info('webOS - current volume: %s', res.volume);
 
-            // mute state
+            // mute state            
             this.tvMuted = res.mute;
             this.setMuteStateManually(!this.tvMuted);
             this.log.info('webOS - muted: %s', res.mute ? 'Yes' : 'No');
@@ -372,15 +382,14 @@ webosTvAccessory.prototype.prepareNewTvService = function() {
     this.prepareTvSpeakerService();
     this.prepareInputSourcesService();
 
-    // additional legacy services
-    this.prepareVolumeService();
+    // additional legacy services    
     this.prepareChannelService();
     this.prepareMediaControlService();
     this.prepareChannelButtonService();
     this.prepareNotificationButtonService();
     this.prepareRemoteControlButtonService();
     this.prepareSoundOutputButtonService();
-
+    this.prepareVolumeService();
 };
 
 webosTvAccessory.prototype.prepareTvSpeakerService = function() {
@@ -701,8 +710,8 @@ webosTvAccessory.prototype.prepareChannelButtonService = function() {
 
     this.channelButtonService = new Array();
     this.channelButtons.forEach((value, i) => {
-        this.channelButtons[i] = this.channelButtons[i].toString();
-        let tmpChannel = new Service.Switch(this.name + ' Channel: ' + value, 'channelButtonService' + i);
+        let tmpChannel = new Service.Switch(this.name + ' Channel: ' + value.name, 'channelButtonService' + i);
+        this.channelButtons[i] = this.channelButtons[i].id.toString();
         tmpChannel
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
@@ -759,8 +768,9 @@ webosTvAccessory.prototype.prepareRemoteControlButtonService = function() {
 
     this.remoteControlButtonService = new Array();
     this.remoteControlButtons.forEach((value, i) => {
-        this.remoteControlButtons[i] = this.remoteControlButtons[i].toString().toUpperCase();
-        let tmpRemoteControl = new Service.Switch(this.name + ' RC: ' + value, 'remoteControlButtonService' + i);
+        this.remoteControlButtons[i] = this.remoteControlButtons[i].id.toString().toUpperCase();
+        //let tmpRemoteControl = new Service.Switch(this.name + ' RC: ' + value, 'remoteControlButtonService' + i);
+        let tmpRemoteControl = new Service.Switch(this.name + ' ' + value.name, 'remoteControlButtonService' + i);
         tmpRemoteControl
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
@@ -788,8 +798,8 @@ webosTvAccessory.prototype.prepareSoundOutputButtonService = function() {
 
     this.soundOutputButtonService = new Array();
     this.soundOutputButtons.forEach((value, i) => {
-        this.soundOutputButtons[i] = this.soundOutputButtons[i].toString();
-        let tmpSoundOutput = new Service.Switch(this.name + ' SO: ' + value, 'soundOutputButtonService' + i);
+        this.soundOutputButtons[i] = this.soundOutputButtons[i].id.toString();
+        let tmpSoundOutput = new Service.Switch(this.name + ' Audio: ' + value.name, 'soundOutputButtonService' + i);
         tmpSoundOutput
             .getCharacteristic(Characteristic.On)
             .on('get', (callback) => {
@@ -867,6 +877,33 @@ webosTvAccessory.prototype.setSoundOutputManually = function(error, value, sound
             });
         }
     }
+
+    if (this.connected && this.volumeService) {
+        this.volumeService.getCharacteristic(Characteristic.On).updateValue(soundOutput !== 'external_speaker');
+    }
+
+    if (this.connected && soundOutput !== 'external_speaker') {
+        setTimeout(() => {
+            this.log.debug("Refreshing audio volume for", soundOutput);
+            this.lgtv.request('ssap://audio/getStatus', (err, res) => {
+                if (!res || err) {
+                    this.log.error('webOS - TV audio status - error while getting current audio status');
+                } else {
+                    res.volume = Math.floor(res.volume * this.volumeConstant);
+
+                    // volume state
+                    this.tvVolume = res.volume;
+                    this.setVolumeManually(this.tvVolume);
+                    this.log.info('webOS - current volume: %s', res.volume);
+        
+                    // mute state            
+                    this.tvMuted = res.mute;
+                    this.setMuteStateManually(!this.tvMuted);
+                    this.log.info('webOS - muted: %s', res.mute ? 'Yes' : 'No');
+                }
+            });
+        }, 100);
+    }
 };
 
 webosTvAccessory.prototype.disableAllNotificationButtons = function() {
@@ -943,6 +980,7 @@ webosTvAccessory.prototype.checkTVState = function(callback) {
             this.connected = true;
         }
         this.log.debug('webOS - TV state: %s', this.connected ? 'On' : 'Off');
+
         callback(null, this.connected);
     });
 };
@@ -971,7 +1009,7 @@ webosTvAccessory.prototype.checkForegroundApp = function(callback, appId) {
 
 webosTvAccessory.prototype.checkCurrentChannel = function(callback, channelNum) {
     if (this.connected) {
-        this.lgtv.request('ssap://tv/getCurrentChannel', (err, res) => {
+        this.lgtv.request('ssap://tv/getCurrentChannel', (err, res) => {            
             if (!res || err || res.errorCode) {
                 this.log.debug('webOS - current channel - error while getting current channel info');
                 callback(null, false, null); // disable all switches
@@ -998,7 +1036,7 @@ webosTvAccessory.prototype.checkSoundOutput = function(callback, soundOutput) {
                 this.log.debug('webOS - sound output - error while getting current sound output');
                 callback(null, false, null); // disable all switches
             } else {
-                this.log.debug('webOS - TV current sound outputl: %s', res.soundOutput);
+                this.log.debug('webOS - TV current sound output: %s', res.soundOutput);
                 if (soundOutput == undefined || soundOutput == null) { // if output undefined or null then i am checking which sound outpt is currently set; if set then continue normally
                     callback(null, true, res.soundOutput);
                 } else if (res.soundOutput === soundOutput) {
@@ -1064,8 +1102,12 @@ webosTvAccessory.prototype.setPowerState = function(state, callback) {
 };
 
 
-webosTvAccessory.prototype.getMuteState = function(callback) {
+webosTvAccessory.prototype.getMuteState = function(callback) {           
     if (this.connected) {
+        if (this.tvCurrentSoundOutput === 'external_speaker') {
+            callback(null, false);
+            return;
+        }
         callback(null, !this.tvMuted);
     } else {
         callback(null, false);
@@ -1100,8 +1142,10 @@ webosTvAccessory.prototype.getVolume = function(callback) {
 
 webosTvAccessory.prototype.setVolume = function(level, callback) {
     if (this.connected) {
-        this.log.debug('webOS - volume service - setting volume to %s, limit: %s', level, this.volumeLimit);
-        if (level > this.volumeLimit) {
+        level = Math.floor(level / this.volumeConstant);
+
+        this.log.debug('webOS - volume service - setting volume to %s, limit: %s, constant: %s', level, this.volumeLimit, this.volumeConstant);
+        if (level > 100) {
             level = this.volumeLimit;
         }
         this.lgtv.request('ssap://audio/setVolume', {
@@ -1114,6 +1158,7 @@ webosTvAccessory.prototype.setVolume = function(level, callback) {
 };
 
 webosTvAccessory.prototype.getVolumeSwitch = function(callback) {
+    this.log.debug("getVolumeSwitch");
     callback(null, false);
 };
 
@@ -1121,8 +1166,9 @@ webosTvAccessory.prototype.setVolumeSwitch = function(state, callback, isUp) {
     if (this.connected) {
         this.log.debug('webOS - volume service - volume %s pressed, current volume: %s, limit: %s', isUp ? 'Up' : 'Down', this.tvVolume, this.volumeLimit);
         let volLevel = this.tvVolume;
+        volLevel = Math.floor(volLevel / this.volumeConstant);
         if (isUp) {
-            if (volLevel < this.volumeLimit) {
+            if (volLevel < 100) {
                 this.lgtv.request('ssap://audio/volumeUp');
             }
         } else {
